@@ -1,8 +1,11 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import { z } from "zod";
 import { env } from "./config/env";
 import { prisma } from "./config/prisma";
+import { HttpError } from "./utils/http-error";
+import { authRouter } from "./modules/auth/auth.routes";
 
 export const app = express();
 
@@ -23,19 +26,23 @@ app.get("/api/health", async (_req: Request, res: Response, next: NextFunction) 
   }
 });
 
-// Feature routers will mount here later:
-// app.use("/api/auth", authRouter);
-// app.use("/api/workspaces", workspaceRouter);
+app.use("/api/auth", authRouter);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ message: "Not found" });
 });
 
-// Global error handler — must have 4 args so Express recognizes it
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+// Global error handler — must have 4 args so Express recognizes it as an error handler
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof z.ZodError) {
+    res.status(400).json({ message: "Validation error", errors: err.flatten().fieldErrors });
+    return;
+  }
+  if (err instanceof HttpError) {
+    res.status(err.status).json({ message: err.message });
+    return;
+  }
   console.error(err);
-  res.status(err.status || 500).json({
-    message: err.message || "Internal server error",
-  });
+  res.status(500).json({ message: "Internal server error" });
 });
