@@ -62,3 +62,4 @@ server/prisma/generated/
 
 # ---------- Project-specific ----------
 # Add any project junk here
+.claude/
