@@ -1,0 +1,326 @@
+==============================================================================
+TeamSync — Project Setup & Context
+==============================================================================
+
+Last updated: 2026-04-22
+
+
+1. PROJECT OBJECTIVE
+------------------------------------------------------------------------------
+
+TeamSync is an advanced B2B team project management SaaS in the spirit of
+Jira / Linear. Organizations create workspaces, invite members, organize work
+into projects and epics, and track tasks with status, priority, and assignees.
+
+The intent is not a tutorial CRUD app — the system is built to enforce clean
+boundaries, data integrity (via transactions), multi-tenant isolation (via
+workspaces), and role-based access control from day one. This is the kind of
+architecture a B2B product would need to pass a security review and scale to
+real customers.
+
+Core capabilities:
+  - Authentication: Email/Password + Google OAuth (httpOnly cookies, no
+    localStorage tokens)
+  - Multiple workspaces per user, each with its own members/projects
+  - Projects → Epics → Tasks hierarchy
+  - Task CRUD with status (BACKLOG/TODO/IN_PROGRESS/IN_REVIEW/DONE),
+    priority (LOW/MEDIUM/HIGH/URGENT), assignee, epic, due date
+  - RBAC: OWNER, ADMIN, MEMBER — enforced via Membership table, NOT JWT claims
+    (so role changes take effect immediately without re-login)
+  - Workspace invitations via tokenized email links
+  - Filtering and search (status, priority, assignee) with indexed queries
+  - Analytics dashboard (tasks per status, per user, completion rate)
+  - Cursor-based pagination (not offset — offset breaks at scale)
+  - Cookie-based session management + logout/session termination
+  - Seed script for demo data
+  - Prisma transactions for atomic multi-table writes
+
+
+2. TECH STACK
+------------------------------------------------------------------------------
+
+Backend
+  - Node.js + Express 5 (TypeScript, strict mode)
+  - Prisma ORM (PostgreSQL)
+  - JWT (access + refresh) in httpOnly cookies
+  - bcrypt for password hashing
+  - zod for request validation and env validation
+  - passport-google-oauth20 for Google Sign-In
+
+Frontend (not yet set up)
+  - Vite + React + TypeScript
+  - TanStack Query (server state)
+  - Zustand (UI state)
+  - React Router
+  - React Hook Form + zod
+  - Tailwind CSS
+
+Database
+  - PostgreSQL 16 (local for dev, Atlas-equivalent managed service for prod)
+
+
+3. REPOSITORY LAYOUT
+------------------------------------------------------------------------------
+
+teamsync/
+├── .gitignore
+├── client/                         (frontend — not yet initialized)
+└── server/                         (backend — current focus)
+    ├── .env                        (secrets — gitignored; see section 5)
+    ├── .gitignore
+    ├── package.json
+    ├── tsconfig.json
+    ├── prisma.config.ts            (loads dotenv, points to schema)
+    ├── prisma/
+    │   ├── schema.prisma           (full data model — see section 4)
+    │   └── migrations/
+    │       └── 20260421195618_init/
+    │           └── migration.sql
+    └── src/
+        ├── index.ts                (bootstraps server + graceful shutdown)
+        ├── app.ts                  (Express app, middleware, routes)
+        ├── config/
+        │   ├── env.ts              (zod-validated env loader)
+        │   └── prisma.ts           (shared PrismaClient instance)
+        ├── middleware/             (auth, RBAC, error handling — TO BUILD)
+        ├── utils/                  (jwt helpers, cookie helpers — TO BUILD)
+        ├── types/                  (shared TS types — TO BUILD)
+        └── modules/                (feature slices — each owns its own
+            │                        routes, controller, service, validators)
+            ├── auth/
+            ├── users/
+            ├── workspaces/
+            ├── projects/
+            ├── epics/
+            ├── tasks/
+            ├── invitations/
+            └── analytics/
+
+The module-based layout (vs. flat controllers/routes/models folders) is
+deliberate. When a feature changes, everything related to it lives in one
+folder. This scales better as the codebase grows.
+
+
+4. DATA MODEL (Prisma — prisma/schema.prisma)
+------------------------------------------------------------------------------
+
+Models: User, Workspace, Membership, Project, Epic, Task, Invitation
+Enums:  Role (OWNER/ADMIN/MEMBER), TaskStatus, Priority, AuthProvider
+
+Key design decisions:
+  - Membership is its own table joining User <-> Workspace with a Role.
+    This is how multi-tenant RBAC is enforced. Do NOT put role on the JWT;
+    look up the membership row per request.
+  - Workspace has a unique `slug` for URL-friendly references.
+  - Project has a composite unique (workspaceId, key) so each workspace can
+    have its own "TS", "ENG", etc. without global collisions.
+  - Task has three composite indexes tuned for the real filter queries:
+    (projectId, status), (projectId, assigneeId), (projectId, priority).
+    Without these, filtering at scale degrades badly.
+  - Invitation uses a unique token and an expiresAt — standard pattern for
+    email-based invite flows.
+  - Cascade deletes are set on workspace → projects → tasks etc., so deleting
+    a workspace cleans up its entire tree atomically.
+
+See prisma/schema.prisma for the full model.
+
+
+5. ENVIRONMENT VARIABLES (server/.env)
+------------------------------------------------------------------------------
+
+Copy server/.env.example (to be created) and fill in values locally. Never
+commit the real .env.
+
+Required:
+  DATABASE_URL              Postgres connection string
+                            Format: postgresql://USER:PASS@HOST:PORT/DB
+  PORT                      API port (default 5000)
+  JWT_ACCESS_SECRET         Random 64+ char hex string
+  JWT_REFRESH_SECRET        Different random 64+ char hex string
+  COOKIE_DOMAIN             "localhost" for dev, your domain in prod
+  NODE_ENV                  "development" | "production" | "test"
+  CLIENT_URL                Frontend origin (http://localhost:5173 for dev)
+
+Optional (enable Google OAuth):
+  GOOGLE_CLIENT_ID
+  GOOGLE_CLIENT_SECRET
+  GOOGLE_CALLBACK_URL
+
+Generate a JWT secret with:
+  node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+
+env.ts validates all of these with zod at startup. If anything's missing or
+malformed, the server exits immediately with a clear error — no silent runtime
+surprises.
+
+
+6. INITIAL SETUP (from scratch, for a new machine)
+------------------------------------------------------------------------------
+
+Prerequisites:
+  - Node.js 20+
+  - PostgreSQL 16 running locally on port 5432
+  - A postgres user with a known password
+
+Steps:
+
+  # 1. Install dependencies
+  cd server
+  npm install
+
+  # 2. Create the .env file
+  #    Copy .env.example (once created) to .env and fill in values.
+  #    Do NOT commit .env.
+
+  # 3. Create the database (one-time)
+  psql -U postgres -c "CREATE DATABASE teamsync;"
+
+  # 4. Apply migrations and generate Prisma Client
+  npx prisma migrate dev
+
+  # 5. (Optional) Browse data
+  npx prisma studio         # opens http://localhost:5555
+
+  # 6. Start the dev server
+  npm run dev               # ts-node-dev, auto-restarts on save
+
+  # 7. Verify
+  curl http://localhost:5000/api/health
+  # Expected: {"ok":true,"db":"connected","time":"..."}
+
+
+7. AVAILABLE SCRIPTS (server/package.json)
+------------------------------------------------------------------------------
+
+  npm run dev              Start dev server with ts-node-dev auto-reload
+  npm run build            Compile TypeScript to dist/
+  npm start                Run compiled production build
+  npm run prisma:migrate   Apply migrations in dev
+  npm run prisma:studio    Open Prisma Studio GUI
+
+
+8. CURRENT STATUS (as of last update)
+------------------------------------------------------------------------------
+
+DONE
+  [x] Monorepo folder structure created
+  [x] Backend dependencies installed
+  [x] TypeScript configured (strict mode, node16 module resolution)
+  [x] Prisma initialized and schema defined (7 models, 4 enums)
+  [x] Initial migration applied — all tables exist in Postgres
+  [x] prisma.config.ts set up to load .env via dotenv
+  [x] env.ts with zod validation
+  [x] Shared PrismaClient instance (src/config/prisma.ts)
+  [x] Express app with CORS, cookie-parser, body parser
+  [x] /api/health endpoint — proven end-to-end (Express → Prisma → Postgres)
+  [x] Global error handler + 404 handler
+  [x] Graceful shutdown (Prisma disconnect on SIGINT/SIGTERM)
+
+TODO — NEXT UP (in dependency order)
+  [ ] Auth module:
+        - Signup (email/password) — hash with bcrypt
+        - Login — issue access + refresh tokens in httpOnly cookies
+        - Refresh endpoint — rotate refresh tokens, detect reuse
+        - Logout — clear cookies, invalidate refresh
+        - Google OAuth flow (passport-google-oauth20)
+  [ ] requireAuth middleware — parses access cookie, attaches req.user
+  [ ] requireRole middleware — looks up Membership, checks role per request
+  [ ] Workspace module:
+        - Create workspace (Prisma transaction: workspace + owner membership)
+        - List user's workspaces
+        - Get workspace by slug
+  [ ] Invitation module:
+        - Create invitation (tokenized, expiring)
+        - Accept invitation (creates Membership)
+  [ ] Project module: CRUD within a workspace
+  [ ] Epic module: CRUD within a project
+  [ ] Task module: CRUD + filtering + cursor pagination
+  [ ] Analytics module: aggregate queries for dashboard
+  [ ] Seed script (src/prisma/seed.ts) — creates test users, a workspace,
+      a project, and ~20 tasks spread across statuses/priorities
+  [ ] Structured logging (pino)
+  [ ] Rate limiting on auth endpoints
+
+FRONTEND — NOT STARTED
+  [ ] Vite + React + TS init in client/
+  [ ] Auth flow + protected routes
+  [ ] Workspace switcher
+  [ ] Task board (kanban-style)
+  [ ] Analytics dashboard
+  [ ] Invitation accept page
+
+
+9. ARCHITECTURAL PRINCIPLES (DO NOT DRIFT)
+------------------------------------------------------------------------------
+
+These are the design rules that separate this project from a toy app. Any
+contributor (human or AI) should preserve them:
+
+  1. RBAC lives in the database, not in tokens.
+     Look up Membership per request. Role changes must take effect without
+     forcing re-login.
+
+  2. Auth cookies are httpOnly, Secure (in prod), SameSite=strict.
+     Never expose tokens to JS. No localStorage for auth.
+
+  3. Multi-table writes use Prisma transactions.
+     Creating a workspace must create the owner Membership atomically.
+     Accepting an invitation must create the Membership and mark the
+     invitation accepted atomically. If either step fails, both roll back.
+
+  4. Request validation at the boundary.
+     Every controller validates its input with zod before touching the DB.
+     Never trust req.body.
+
+  5. Index your filter columns.
+     When adding a new filter, add a matching composite index in schema.prisma.
+
+  6. Cursor pagination, not offset.
+     Offset pagination breaks silently at scale and double-counts rows when
+     the underlying data changes during scroll. Use the last seen id + createdAt.
+
+  7. Module-based layout.
+     Features own their routes, controllers, services, validators. Don't
+     spread a single feature across four sibling folders.
+
+  8. No business logic in controllers.
+     Controllers parse the request and call services. Services contain the
+     actual logic and own the Prisma calls. This makes logic testable and
+     reusable (e.g., the same service can be called from a REST route and a
+     future background job).
+
+  9. Env validation at startup.
+     If a required env var is missing, fail immediately and loudly. Never
+     let the app boot into a broken state.
+
+  10. Log errors; don't swallow them.
+     The global error handler logs everything and returns a safe JSON shape
+     to the client. Don't try/catch and silently return null.
+
+
+10. USEFUL COMMANDS CHEAT SHEET
+------------------------------------------------------------------------------
+
+Prisma
+  npx prisma migrate dev --name <name>       Create + apply a new migration
+  npx prisma migrate reset                   Drop DB and reapply all
+                                             migrations (destroys data)
+  npx prisma generate                        Regenerate client after schema
+                                             change without a migration
+  npx prisma studio                          GUI at localhost:5555
+  npx prisma db pull                         Introspect existing DB into schema
+                                             (not typical workflow here)
+
+Postgres (local)
+  psql -U postgres                           Connect as superuser
+  \l                                          List databases
+  \c teamsync                                 Connect to teamsync DB
+  \dt                                         List tables
+  \d "User"                                   Describe a table (quotes matter
+                                             — Prisma uses PascalCase)
+  \q                                          Quit
+
+
+==============================================================================
+End of setup.txt
+==============================================================================
