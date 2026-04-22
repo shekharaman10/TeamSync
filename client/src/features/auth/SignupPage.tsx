@@ -53,27 +53,33 @@ export function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-black px-4">
-      <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/10 bg-linear-to-br from-zinc-800/80 via-zinc-900 to-black p-10 shadow-2xl">
-        {/* Teal glow */}
-        <div className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-teal-500/20 blur-3xl" />
+    <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
+      <div className="w-full max-w-90 overflow-hidden rounded-2xl border border-white/10 shadow-2xl shadow-black/80">
 
-        <div className="relative">
-          <h1 className="text-4xl font-bold tracking-tight text-white">Create account</h1>
-          <p className="mt-1.5 text-sm text-zinc-400">Start your TeamSync journey</p>
+        {/* Glass header */}
+        <div className="relative overflow-hidden px-8 pb-7 pt-8">
+          <div className="absolute inset-0 bg-linear-to-b from-zinc-600 to-zinc-800" />
+          <div className="absolute inset-0 bg-linear-to-br from-teal-400/25 via-teal-700/10 to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-b from-white/10 via-transparent to-transparent" />
+          <div className="relative">
+            <h1 className="text-[28px] font-bold tracking-tight text-white">Create account</h1>
+            <p className="mt-1 text-sm text-zinc-300/80">Start your TeamSync journey</p>
+          </div>
+        </div>
 
+        {/* Form body */}
+        <div className="bg-zinc-900 px-8 pb-8 pt-6">
           {errors.root && (
-            <div className="mt-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+            <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
               {errors.root.message}
             </div>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-7 space-y-3">
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-3">
             <div>
-              <div className="rounded-full border border-white/10 bg-white/5 px-5 py-3 focus-within:border-teal-500/40 transition-colors">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Name</span>
+              <div className="rounded-full border border-white/8 bg-white/5 px-5 py-3 transition-colors focus-within:border-teal-500/40">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Name</span>
                 <input
-                  id="name"
                   type="text"
                   autoComplete="name"
                   {...register("name")}
@@ -86,10 +92,9 @@ export function SignupPage() {
             </div>
 
             <div>
-              <div className="rounded-full border border-white/10 bg-white/5 px-5 py-3 focus-within:border-teal-500/40 transition-colors">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Email</span>
+              <div className="rounded-full border border-white/8 bg-white/5 px-5 py-3 transition-colors focus-within:border-teal-500/40">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Email</span>
                 <input
-                  id="email"
                   type="email"
                   autoComplete="email"
                   {...register("email")}
@@ -102,10 +107,9 @@ export function SignupPage() {
             </div>
 
             <div>
-              <div className="rounded-full border border-white/10 bg-white/5 px-5 py-3 focus-within:border-teal-500/40 transition-colors">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Password</span>
+              <div className="rounded-full border border-white/8 bg-white/5 px-5 py-3 transition-colors focus-within:border-teal-500/40">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Password</span>
                 <input
-                  id="password"
                   type="password"
                   autoComplete="new-password"
                   {...register("password")}
@@ -120,7 +124,7 @@ export function SignupPage() {
             <button
               type="submit"
               disabled={isPending}
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-teal-400 py-3.5 text-sm font-semibold text-black transition-colors hover:bg-teal-300 disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-teal-400 py-3.5 text-sm font-semibold text-black transition-colors hover:bg-teal-300 disabled:opacity-50"
             >
               {isPending ? (
                 <>
@@ -136,24 +140,24 @@ export function SignupPage() {
             </button>
           </form>
 
-          <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-white/10" />
-            <span className="text-xs font-medium text-zinc-500">OR</span>
-            <div className="h-px flex-1 bg-white/10" />
+          <div className="my-5 flex items-center gap-3">
+            <div className="h-px flex-1 bg-white/8" />
+            <span className="text-xs font-medium text-zinc-600">OR</span>
+            <div className="h-px flex-1 bg-white/8" />
           </div>
 
           <button
             type="button"
-            className="flex w-full items-center gap-3 rounded-full border border-white/10 bg-white/5 px-5 py-3.5 text-sm text-zinc-300 transition-colors hover:bg-white/10"
+            className="flex w-full items-center gap-3 rounded-full border border-white/8 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition-colors hover:bg-white/10"
           >
             <GoogleIcon />
             <span className="flex-1 text-left">Continue with Google</span>
-            <span className="text-zinc-500"><ArrowIcon /></span>
+            <span className="text-zinc-600"><ArrowIcon /></span>
           </button>
 
-          <p className="mt-8 text-center text-sm text-zinc-500">
+          <p className="mt-7 text-center text-sm text-zinc-600">
             Already have an account?{" "}
-            <Link to="/login" className="font-medium text-teal-400 hover:text-teal-300">
+            <Link to="/login" className="font-semibold text-teal-400 hover:text-teal-300">
               Sign in
             </Link>
           </p>
