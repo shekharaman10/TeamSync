@@ -21,6 +21,15 @@ const PRIORITY_TEXT: Record<Priority, string> = {
   urgent: "text-red-400", high: "text-amber-400", medium: "text-sky-400", low: "text-zinc-400",
 };
 
+// Full static strings required so Tailwind JIT includes pseudo-element classes.
+const PROGRESS_CLS: Record<string, string> = {
+  "bg-zinc-500": "[&::-webkit-progress-value]:bg-zinc-500 [&::-moz-progress-bar]:bg-zinc-500",
+  "bg-sky-400":  "[&::-webkit-progress-value]:bg-sky-400 [&::-moz-progress-bar]:bg-sky-400",
+  "bg-amber-400":"[&::-webkit-progress-value]:bg-amber-400 [&::-moz-progress-bar]:bg-amber-400",
+  "bg-teal-400": "[&::-webkit-progress-value]:bg-teal-400 [&::-moz-progress-bar]:bg-teal-400",
+  "bg-red-400":  "[&::-webkit-progress-value]:bg-red-400 [&::-moz-progress-bar]:bg-red-400",
+};
+
 function StatCard({ label, value, sub, accent }: { label: string; value: number; sub: string; accent: string }) {
   return (
     <div className="rounded-xl border border-white/5 bg-zinc-800/40 p-5">
@@ -38,12 +47,12 @@ function BarRow({ label, count, max, barClass, textClass }: {
   return (
     <div className="flex items-center gap-3">
       <span className="w-24 shrink-0 text-right text-xs text-zinc-400">{label}</span>
-      <div className="flex-1 overflow-hidden rounded-full bg-zinc-800">
-        <div
-          className={`h-2 rounded-full transition-all duration-500 ${barClass}`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+      <progress
+        value={pct}
+        max={100}
+        aria-label={label}
+        className={`h-2 flex-1 rounded-full [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-zinc-800 [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:transition-all [&::-webkit-progress-value]:duration-500 [&::-moz-progress-bar]:rounded-full ${PROGRESS_CLS[barClass] ?? ""}`}
+      />
       <span className={`w-6 text-right text-xs font-semibold ${textClass}`}>{count}</span>
     </div>
   );
@@ -102,12 +111,12 @@ export function AnalyticsPage() {
             <h2 className="text-sm font-semibold text-white">Sprint progress</h2>
             <span className="text-sm font-bold text-teal-400">{completionPct}%</span>
           </div>
-          <div className="h-2.5 overflow-hidden rounded-full bg-zinc-800">
-            <div
-              className="h-full rounded-full bg-teal-400 transition-all duration-700"
-              style={{ width: `${completionPct}%` }}
-            />
-          </div>
+          <progress
+            value={completionPct}
+            max={100}
+            aria-label="Sprint completion"
+            className="h-2.5 w-full rounded-full [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-zinc-800 [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-teal-400 [&::-webkit-progress-value]:transition-all [&::-webkit-progress-value]:duration-700 [&::-moz-progress-bar]:rounded-full [&::-moz-progress-bar]:bg-teal-400"
+          />
           <div className="mt-3 flex gap-4">
             {statusCounts.map(({ status, count }) => (
               <div key={status} className="flex items-center gap-1.5">
@@ -170,9 +179,12 @@ export function AnalyticsPage() {
                         <p className="text-[10px] text-zinc-600">{t} tasks</p>
                       </div>
                     </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-zinc-800">
-                      <div className="h-full rounded-full bg-teal-400 transition-all duration-700" style={{ width: `${pct}%` }} />
-                    </div>
+                    <progress
+                      value={pct}
+                      max={100}
+                      aria-label={`${member.name} completion`}
+                      className="h-1.5 w-full rounded-full [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-zinc-800 [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-teal-400 [&::-webkit-progress-value]:transition-all [&::-webkit-progress-value]:duration-700 [&::-moz-progress-bar]:rounded-full [&::-moz-progress-bar]:bg-teal-400"
+                    />
                     <p className="mt-1.5 text-[10px] text-zinc-500">{d} done · {pct}%</p>
                   </div>
                 );

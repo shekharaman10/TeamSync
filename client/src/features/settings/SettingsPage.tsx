@@ -127,7 +127,7 @@ function Toggle({ id, label, defaultChecked }: { id: string; label: string; defa
         id={id}
         type="button"
         role="switch"
-        aria-checked={checked}
+        aria-checked={checked ? "true" : "false"}
         onClick={() => setChecked((v) => !v)}
         className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${checked ? "bg-teal-400" : "bg-zinc-700"}`}
       >

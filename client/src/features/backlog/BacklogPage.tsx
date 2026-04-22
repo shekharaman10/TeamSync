@@ -81,6 +81,7 @@ export function BacklogPage() {
         />
 
         <select
+          aria-label="Filter by status"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as Status | typeof ALL)}
           className="h-7 rounded-lg border border-white/8 bg-zinc-900 px-2 text-xs text-zinc-300 focus:outline-none"
@@ -92,6 +93,7 @@ export function BacklogPage() {
         </select>
 
         <select
+          aria-label="Filter by priority"
           value={priorityFilter}
           onChange={(e) => setPriorityFilter(e.target.value as Priority | typeof ALL)}
           className="h-7 rounded-lg border border-white/8 bg-zinc-900 px-2 text-xs text-zinc-300 focus:outline-none"
@@ -103,6 +105,7 @@ export function BacklogPage() {
         </select>
 
         <select
+          aria-label="Filter by assignee"
           value={assigneeFilter}
           onChange={(e) => setAssigneeFilter(e.target.value)}
           className="h-7 rounded-lg border border-white/8 bg-zinc-900 px-2 text-xs text-zinc-300 focus:outline-none"
@@ -140,7 +143,7 @@ export function BacklogPage() {
             {filtered.map((task) => (
               <tr
                 key={task.id}
-                className="group cursor-pointer border-b border-white/5 transition-colors hover:bg-white/[0.03]"
+                className="group cursor-pointer border-b border-white/5 transition-colors hover:bg-white/3"
               >
                 <td className="px-6 py-3.5">
                   <span className="font-medium text-zinc-200">{task.title}</span>

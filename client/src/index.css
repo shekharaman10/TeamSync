@@ -1,1 +1,7 @@
 @import "tailwindcss";
+
+progress {
+  appearance: none;
+  border: none;
+  display: block;
+}
