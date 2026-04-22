@@ -1,10 +1,12 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { isAxiosError } from "axios";
+import type { ReactNode } from "react";
 import { logoutRequest } from "../features/auth/auth.api";
 import { useAuthStore } from "../features/auth/useAuthStore";
+import { WorkspaceSwitcher } from "../features/workspaces/components/WorkspaceSwitcher";
 import { queryClient } from "../lib/query-client";
 
-type NavItem = { to: string; label: string; icon: React.ReactNode };
+type NavItem = { to: string; label: string; icon: ReactNode };
 
 function BoardIcon() {
   return (
@@ -25,6 +27,15 @@ function BacklogIcon() {
       <circle cx="3" cy="6" r="1" fill="currentColor" stroke="none" />
       <circle cx="3" cy="12" r="1" fill="currentColor" stroke="none" />
       <circle cx="3" cy="18" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function ProjectsIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="7" width="20" height="14" rx="2" />
+      <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
     </svg>
   );
 }
@@ -69,17 +80,21 @@ function SignOutIcon() {
   );
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { to: "/app/board",     label: "Board",     icon: <BoardIcon /> },
-  { to: "/app/backlog",   label: "Backlog",   icon: <BacklogIcon /> },
-  { to: "/app/members",   label: "Members",   icon: <MembersIcon /> },
-  { to: "/app/analytics", label: "Analytics", icon: <AnalyticsIcon /> },
-  { to: "/app/settings",  label: "Settings",  icon: <SettingsIcon /> },
-];
-
 export function Sidebar() {
+  const { workspaceId } = useParams<{ workspaceId: string }>();
   const { user, clear } = useAuthStore();
   const navigate = useNavigate();
+
+  const base = workspaceId ? `/app/workspaces/${workspaceId}` : "";
+
+  const NAV_ITEMS: NavItem[] = [
+    { to: `${base}/board`,     label: "Board",     icon: <BoardIcon /> },
+    { to: `${base}/backlog`,   label: "Backlog",   icon: <BacklogIcon /> },
+    { to: `${base}/projects`,  label: "Projects",  icon: <ProjectsIcon /> },
+    { to: `${base}/members`,   label: "Members",   icon: <MembersIcon /> },
+    { to: `${base}/analytics`, label: "Analytics", icon: <AnalyticsIcon /> },
+    { to: `${base}/settings`,  label: "Settings",  icon: <SettingsIcon /> },
+  ];
 
   function handleLogout() {
     logoutRequest().catch((err: unknown) => {
@@ -99,16 +114,18 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-full w-56 shrink-0 flex-col border-r border-white/5 bg-zinc-950">
-      {/* Logo */}
-      <div className="flex h-14 items-center gap-2.5 border-b border-white/5 px-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-400 text-[11px] font-black text-black">
-          TS
-        </div>
-        <span className="text-sm font-semibold text-white">TeamSync</span>
+      <div className="border-b border-white/5 p-3">
+        {workspaceId ? (
+          <WorkspaceSwitcher />
+        ) : (
+          <div className="flex items-center gap-2.5 px-2 py-1.5">
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-teal-400 text-[9px] font-black text-black">TS</div>
+            <span className="text-xs font-semibold text-white">TeamSync</span>
+          </div>
+        )}
       </div>
 
-      {/* Nav */}
-      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2">
+      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2" aria-label="Main navigation">
         {NAV_ITEMS.map(({ to, label, icon }) => (
           <NavLink
             key={to}
@@ -127,7 +144,6 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* User + sign-out */}
       <div className="border-t border-white/5 p-3">
         <div className="flex items-center gap-2.5 rounded-lg px-2 py-2">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-500/20 text-[11px] font-bold text-teal-300">

@@ -6,6 +6,11 @@ import { env } from "./config/env";
 import { prisma } from "./config/prisma";
 import { HttpError } from "./utils/http-error";
 import { authRouter } from "./modules/auth/auth.routes";
+import { workspacesRouter } from "./modules/workspaces/workspaces.routes";
+import { projectsRouter } from "./modules/projects/projects.routes";
+import { epicsRouter } from "./modules/epics/epics.routes";
+import { tasksRouter } from "./modules/tasks/tasks.routes";
+import { invitationsRouter } from "./modules/invitations/invitations.routes";
 
 export const app = express();
 
@@ -27,6 +32,11 @@ app.get("/api/health", async (_req: Request, res: Response, next: NextFunction) 
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api", workspacesRouter);
+app.use("/api", projectsRouter);
+app.use("/api", epicsRouter);
+app.use("/api", tasksRouter);
+app.use("/api", invitationsRouter);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {

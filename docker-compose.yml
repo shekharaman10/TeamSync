@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: teamsync
+      POSTGRES_PASSWORD: teamsync
+      POSTGRES_DB: teamsync
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teamsync"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Secrets (JWT, Google OAuth) come from server/.env
+    # DATABASE_URL and runtime vars are overridden below
+    env_file:
+      - ./server/.env
+    environment:
+      DATABASE_URL: postgresql://teamsync:teamsync@postgres:5432/teamsync
+      PORT: "5000"
+      NODE_ENV: production
+      CLIENT_URL: http://localhost
+      COOKIE_DOMAIN: localhost
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "80:80"
+
+volumes:
+  postgres_data:

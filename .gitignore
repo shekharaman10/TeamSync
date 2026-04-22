@@ -60,6 +60,9 @@ server/prisma/generated/
 .claude/sessions/
 .claude/.local/
 
+# ---------- Docker ----------
+docker-compose.override.yml
+
 # ---------- Project-specific ----------
 # Add any project junk here
 .claude/

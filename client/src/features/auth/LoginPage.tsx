@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { LoginSchema } from "./auth.schemas";
 import { extractErrorMessage } from "../../lib/error";
 import type { LoginInput } from "./auth.schemas";
@@ -26,16 +26,10 @@ function GoogleIcon() {
   );
 }
 
-function XIcon() {
-  return (
-    <svg className="h-4 w-4 shrink-0 fill-current" viewBox="0 0 24 24">
-      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.743l7.73-8.835L1.254 2.25H8.08l4.258 5.63 5.906-5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-    </svg>
-  );
-}
-
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const next = searchParams.get("next");
   const { setUser } = useAuthStore();
   const { mutate: login, isPending } = useLogin();
 
@@ -53,7 +47,7 @@ export function LoginPage() {
     login(data, {
       onSuccess: ({ user }) => {
         setUser(user);
-        navigate("/app", { replace: true });
+        navigate(next ?? "/app", { replace: true });
       },
       onError: (err) => {
         setError("root", { message: extractErrorMessage(err) });
@@ -70,7 +64,6 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
       <div className="w-full max-w-90 overflow-hidden rounded-2xl border border-white/10 shadow-2xl shadow-black/80">
 
-        {/* Glass header */}
         <div className="relative overflow-hidden px-8 pb-7 pt-8">
           <div className="absolute inset-0 bg-linear-to-b from-zinc-600 to-zinc-800" />
           <div className="absolute inset-0 bg-linear-to-br from-teal-400/25 via-teal-700/10 to-transparent" />
@@ -81,7 +74,6 @@ export function LoginPage() {
           </div>
         </div>
 
-        {/* Form body */}
         <div className="bg-zinc-900 px-8 pb-8 pt-6">
           {errors.root && (
             <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
@@ -117,9 +109,7 @@ export function LoginPage() {
                   )}
                 </button>
               </div>
-              {errors.email && (
-                <p className="ml-4 mt-1.5 text-xs text-red-400">{errors.email.message}</p>
-              )}
+              {errors.email && <p className="ml-4 mt-1.5 text-xs text-red-400">{errors.email.message}</p>}
             </div>
 
             <div>
@@ -132,9 +122,7 @@ export function LoginPage() {
                   className="block w-full bg-transparent text-sm text-white placeholder-zinc-600 focus:outline-none"
                 />
               </div>
-              {errors.password && (
-                <p className="ml-4 mt-1.5 text-xs text-red-400">{errors.password.message}</p>
-              )}
+              {errors.password && <p className="ml-4 mt-1.5 text-xs text-red-400">{errors.password.message}</p>}
             </div>
           </form>
 
@@ -159,15 +147,6 @@ export function LoginPage() {
             >
               <GoogleIcon />
               <span className="flex-1 text-left text-sm">Continue with Google</span>
-              <span className="text-zinc-600"><ArrowIcon /></span>
-            </button>
-
-            <button
-              type="button"
-              className="flex w-full items-center gap-3 rounded-full border border-white/8 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition-colors hover:bg-white/10"
-            >
-              <XIcon />
-              <span className="flex-1 text-left text-sm">Continue with X</span>
               <span className="text-zinc-600"><ArrowIcon /></span>
             </button>
           </div>
