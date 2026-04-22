@@ -1,4 +1,5 @@
-import { MOCK_TASKS, MOCK_MEMBERS, type Status, type Priority } from "../board/mockData";
+import { MOCK_TASKS, buildMemberList, resolveTasks, getInitials, type Status, type Priority } from "../board/mockData";
+import { useAuthStore } from "../auth/useAuthStore";
 
 const STATUS_LABEL: Record<Status, string> = {
   TODO: "To Do", IN_PROGRESS: "In Progress", IN_REVIEW: "In Review", DONE: "Done",
@@ -49,26 +50,31 @@ function BarRow({ label, count, max, barClass, textClass }: {
 }
 
 export function AnalyticsPage() {
-  const total = MOCK_TASKS.length;
-  const done = MOCK_TASKS.filter((t) => t.status === "DONE").length;
-  const inProgress = MOCK_TASKS.filter((t) => t.status === "IN_PROGRESS").length;
-  const inReview = MOCK_TASKS.filter((t) => t.status === "IN_REVIEW").length;
+  const { user } = useAuthStore();
+  const members = user ? buildMemberList(user) : [];
+  const selfInitials = user ? getInitials(user.name) : "?";
+  const tasks = resolveTasks(MOCK_TASKS, selfInitials);
+
+  const total = tasks.length;
+  const done = tasks.filter((t) => t.status === "DONE").length;
+  const inProgress = tasks.filter((t) => t.status === "IN_PROGRESS").length;
+  const inReview = tasks.filter((t) => t.status === "IN_REVIEW").length;
   const completionPct = total > 0 ? Math.round((done / total) * 100) : 0;
 
   const statusCounts = (["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"] as Status[]).map((s) => ({
     status: s,
-    count: MOCK_TASKS.filter((t) => t.status === s).length,
+    count: tasks.filter((t) => t.status === s).length,
   }));
 
   const priorityCounts = (["urgent", "high", "medium", "low"] as Priority[]).map((p) => ({
     priority: p,
-    count: MOCK_TASKS.filter((t) => t.priority === p).length,
+    count: tasks.filter((t) => t.priority === p).length,
   }));
 
-  const assigneeCounts = MOCK_MEMBERS.map((m) => ({
+  const assigneeCounts = members.map((m) => ({
     member: m,
-    total: MOCK_TASKS.filter((t) => t.assignee === m.initials).length,
-    done: MOCK_TASKS.filter((t) => t.assignee === m.initials && t.status === "DONE").length,
+    total: tasks.filter((t) => t.assignee === m.initials).length,
+    done: tasks.filter((t) => t.assignee === m.initials && t.status === "DONE").length,
   }));
 
   return (

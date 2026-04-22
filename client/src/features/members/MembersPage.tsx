@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { MOCK_MEMBERS, type Role } from "../board/mockData";
+import { buildMemberList, type Role } from "../board/mockData";
+import { useAuthStore } from "../auth/useAuthStore";
 
 const ROLE_BADGE: Record<Role, string> = {
   OWNER:  "bg-teal-500/15 text-teal-300 ring-1 ring-teal-500/30",
@@ -8,6 +9,8 @@ const ROLE_BADGE: Record<Role, string> = {
 };
 
 export function MembersPage() {
+  const { user } = useAuthStore();
+  const members = user ? buildMemberList(user) : [];
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteSent, setInviteSent] = useState(false);
 
@@ -25,7 +28,7 @@ export function MembersPage() {
       <div className="flex shrink-0 items-center justify-between border-b border-white/5 px-6 py-4">
         <div>
           <h1 className="text-base font-semibold text-white">Members</h1>
-          <p className="text-xs text-zinc-500">{MOCK_MEMBERS.length} members in this workspace</p>
+          <p className="text-xs text-zinc-500">{members.length} members in this workspace</p>
         </div>
       </div>
 
@@ -56,7 +59,7 @@ export function MembersPage() {
 
         {/* Member list */}
         <div className="space-y-2">
-          {MOCK_MEMBERS.map((member) => (
+          {members.map((member) => (
             <div
               key={member.id}
               className="flex items-center gap-4 rounded-xl border border-white/5 bg-zinc-800/40 px-5 py-4 transition-colors hover:bg-zinc-800/60"

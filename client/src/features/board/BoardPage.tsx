@@ -17,7 +17,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { COLUMNS, MOCK_TASKS, type Task, type Status } from "./mockData";
+import { COLUMNS, MOCK_TASKS, resolveTasks, getInitials, type Task, type Status } from "./mockData";
+import { useAuthStore } from "../auth/useAuthStore";
 import { TaskCard } from "./TaskCard";
 
 type TasksByColumn = Record<Status, Task[]>;
@@ -73,7 +74,11 @@ function DroppableColumn({
 }
 
 export function BoardPage() {
-  const [tasks, setTasks] = useState<TasksByColumn>(() => groupByColumn(MOCK_TASKS));
+  const { user } = useAuthStore();
+  const selfInitials = user ? getInitials(user.name) : "?";
+  const [tasks, setTasks] = useState<TasksByColumn>(() =>
+    groupByColumn(resolveTasks(MOCK_TASKS, selfInitials)),
+  );
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [overColId, setOverColId] = useState<Status | null>(null);
 

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { MOCK_TASKS, type Status, type Priority } from "../board/mockData";
+import { MOCK_TASKS, resolveTasks, getInitials, type Status, type Priority } from "../board/mockData";
+import { useAuthStore } from "../auth/useAuthStore";
 
 const TAG_COLORS: Record<string, string> = {
   Auth:     "bg-violet-500/15 text-violet-300",
@@ -34,14 +35,18 @@ const PRIORITY_COLOR: Record<Priority, string> = {
 const ALL = "ALL";
 
 export function BacklogPage() {
+  const { user } = useAuthStore();
+  const selfInitials = user ? getInitials(user.name) : "?";
+  const allTasks = resolveTasks(MOCK_TASKS, selfInitials);
+
   const [statusFilter, setStatusFilter] = useState<Status | typeof ALL>(ALL);
   const [priorityFilter, setPriorityFilter] = useState<Priority | typeof ALL>(ALL);
   const [assigneeFilter, setAssigneeFilter] = useState<string>(ALL);
   const [search, setSearch] = useState("");
 
-  const assignees = [...new Set(MOCK_TASKS.map((t) => t.assignee))];
+  const assignees = [...new Set(allTasks.map((t) => t.assignee))];
 
-  const filtered = MOCK_TASKS.filter((t) => {
+  const filtered = allTasks.filter((t) => {
     if (statusFilter !== ALL && t.status !== statusFilter) return false;
     if (priorityFilter !== ALL && t.priority !== priorityFilter) return false;
     if (assigneeFilter !== ALL && t.assignee !== assigneeFilter) return false;
@@ -55,7 +60,7 @@ export function BacklogPage() {
       <div className="flex shrink-0 items-center justify-between border-b border-white/5 px-6 py-4">
         <div>
           <h1 className="text-base font-semibold text-white">Backlog</h1>
-          <p className="text-xs text-zinc-500">{MOCK_TASKS.length} tasks total</p>
+          <p className="text-xs text-zinc-500">{allTasks.length} tasks total</p>
         </div>
         <button
           type="button"
