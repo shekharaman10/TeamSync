@@ -5,7 +5,10 @@ import { LoginPage } from "../features/auth/LoginPage";
 import { SignupPage } from "../features/auth/SignupPage";
 import { AppShell } from "../components/AppShell";
 import { BoardPage } from "../features/board/BoardPage";
-import { PlaceholderPage } from "../pages/PlaceholderPage";
+import { BacklogPage } from "../features/backlog/BacklogPage";
+import { MembersPage } from "../features/members/MembersPage";
+import { AnalyticsPage } from "../features/analytics/AnalyticsPage";
+import { SettingsPage } from "../features/settings/SettingsPage";
 
 export const router = createBrowserRouter([
   {
@@ -15,7 +18,7 @@ export const router = createBrowserRouter([
   {
     element: <PublicOnlyRoute />,
     children: [
-      { path: "/login", element: <LoginPage /> },
+      { path: "/login",  element: <LoginPage /> },
       { path: "/signup", element: <SignupPage /> },
     ],
   },
@@ -28,10 +31,10 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="/app/board" replace /> },
           { path: "board",     element: <BoardPage /> },
-          { path: "backlog",   element: <PlaceholderPage title="Backlog" /> },
-          { path: "members",   element: <PlaceholderPage title="Members" /> },
-          { path: "analytics", element: <PlaceholderPage title="Analytics" /> },
-          { path: "settings",  element: <PlaceholderPage title="Settings" /> },
+          { path: "backlog",   element: <BacklogPage /> },
+          { path: "members",   element: <MembersPage /> },
+          { path: "analytics", element: <AnalyticsPage /> },
+          { path: "settings",  element: <SettingsPage /> },
         ],
       },
     ],
