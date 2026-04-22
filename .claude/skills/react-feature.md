@@ -1,4 +1,4 @@
-# Skill: Build a Frontend React Feature
+![1776836785023](image/react-feature/1776836785023.png)![1776836789069](image/react-feature/1776836789069.png)# Skill: Build a Frontend React Feature
 
 **Load this skill when:** building something in `client/` — a new page, a form, a feature slice like task board, workspace switcher, login screen.
 
