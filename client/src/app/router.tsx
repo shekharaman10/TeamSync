@@ -3,14 +3,14 @@ import { AuthGuard } from "../features/auth/AuthGuard";
 import { PublicOnlyRoute } from "../features/auth/PublicOnlyRoute";
 import { LoginPage } from "../features/auth/LoginPage";
 import { SignupPage } from "../features/auth/SignupPage";
-import { AppPage } from "../pages/AppPage";
+import { AppShell } from "../components/AppShell";
+import { BoardPage } from "../features/board/BoardPage";
+import { PlaceholderPage } from "../pages/PlaceholderPage";
 
 export const router = createBrowserRouter([
   {
-    // "/" → always redirect to /app; AuthGuard decides whether to let through or
-    // bounce to /login. This achieves "redirect based on auth" with zero extra code.
     path: "/",
-    element: <Navigate to="/app" replace />,
+    element: <Navigate to="/app/board" replace />,
   },
   {
     element: <PublicOnlyRoute />,
@@ -21,13 +21,26 @@ export const router = createBrowserRouter([
   },
   {
     element: <AuthGuard />,
-    children: [{ path: "/app", element: <AppPage /> }],
+    children: [
+      {
+        path: "/app",
+        element: <AppShell />,
+        children: [
+          { index: true, element: <Navigate to="/app/board" replace /> },
+          { path: "board",     element: <BoardPage /> },
+          { path: "backlog",   element: <PlaceholderPage title="Backlog" /> },
+          { path: "members",   element: <PlaceholderPage title="Members" /> },
+          { path: "analytics", element: <PlaceholderPage title="Analytics" /> },
+          { path: "settings",  element: <PlaceholderPage title="Settings" /> },
+        ],
+      },
+    ],
   },
   {
     path: "*",
     element: (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-500">404 — page not found</p>
+      <div className="flex min-h-screen items-center justify-center bg-zinc-950">
+        <p className="text-sm text-zinc-500">404 — page not found</p>
       </div>
     ),
   },
