@@ -1,8 +1,8 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, Link } from "react-router-dom";
-import { isAxiosError } from "axios";
 import { LoginSchema } from "./auth.schemas";
+import { extractErrorMessage } from "../../lib/error";
 import type { LoginInput } from "./auth.schemas";
 import { useLogin } from "./auth.api";
 import { useAuthStore } from "./useAuthStore";
@@ -28,7 +28,7 @@ function GoogleIcon() {
 
 function XIcon() {
   return (
-    <svg className="h-4 w-4 shrink-0 fill-current text-zinc-300" viewBox="0 0 24 24">
+    <svg className="h-4 w-4 shrink-0 fill-current" viewBox="0 0 24 24">
       <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.743l7.73-8.835L1.254 2.25H8.08l4.258 5.63 5.906-5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
     </svg>
   );
@@ -42,6 +42,7 @@ export function LoginPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
     setError,
   } = useForm<LoginInput>({
@@ -55,38 +56,44 @@ export function LoginPage() {
         navigate("/app", { replace: true });
       },
       onError: (err) => {
-        const message = isAxiosError(err)
-          ? (err.response?.data?.message as string | undefined) ??
-            (err.code === "ERR_NETWORK"
-              ? "Cannot reach the server. Make sure the backend is running."
-              : "Something went wrong. Please try again.")
-          : "Something went wrong. Please try again.";
-        setError("root", { message });
+        setError("root", { message: extractErrorMessage(err) });
       },
     });
   }
 
+  function fillDemo() {
+    setValue("email", "demo@teamsync.com");
+    setValue("password", "test@123");
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-black px-4">
-      <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/10 bg-linear-to-br from-zinc-800/80 via-zinc-900 to-black p-10 shadow-2xl">
-        {/* Teal glow */}
-        <div className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-teal-500/20 blur-3xl" />
+    <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
+      <div className="w-full max-w-90 overflow-hidden rounded-2xl border border-white/10 shadow-2xl shadow-black/80">
 
-        <div className="relative">
-          <h1 className="text-4xl font-bold tracking-tight text-white">Welcome back</h1>
-          <p className="mt-1.5 text-sm text-zinc-400">Sign in to your account</p>
+        {/* Glass header */}
+        <div className="relative overflow-hidden px-8 pb-7 pt-8">
+          <div className="absolute inset-0 bg-linear-to-b from-zinc-600 to-zinc-800" />
+          <div className="absolute inset-0 bg-linear-to-br from-teal-400/25 via-teal-700/10 to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-b from-white/10 via-transparent to-transparent" />
+          <div className="relative">
+            <h1 className="text-[28px] font-bold tracking-tight text-white">Welcome back</h1>
+            <p className="mt-1 text-sm text-zinc-300/80">Sign in to your account</p>
+          </div>
+        </div>
 
+        {/* Form body */}
+        <div className="bg-zinc-900 px-8 pb-8 pt-6">
           {errors.root && (
-            <div className="mt-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+            <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
               {errors.root.message}
             </div>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-7 space-y-3">
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-3">
             <div>
-              <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-5 py-3 focus-within:border-teal-500/40 transition-colors">
+              <div className="flex items-center gap-3 rounded-full border border-white/8 bg-white/5 px-5 py-3 transition-colors focus-within:border-teal-500/40">
                 <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Email</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Email</span>
                   <input
                     type="email"
                     autoComplete="email"
@@ -98,7 +105,7 @@ export function LoginPage() {
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-400 text-black transition-colors hover:bg-teal-300 disabled:opacity-60"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-400 text-black transition-colors hover:bg-teal-300 disabled:opacity-50"
                 >
                   {isPending ? (
                     <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -116,8 +123,8 @@ export function LoginPage() {
             </div>
 
             <div>
-              <div className="rounded-full border border-white/10 bg-white/5 px-5 py-3 focus-within:border-teal-500/40 transition-colors">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Password</span>
+              <div className="rounded-full border border-white/8 bg-white/5 px-5 py-3 transition-colors focus-within:border-teal-500/40">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Password</span>
                 <input
                   type="password"
                   autoComplete="current-password"
@@ -131,35 +138,43 @@ export function LoginPage() {
             </div>
           </form>
 
-          <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-white/10" />
-            <span className="text-xs font-medium text-zinc-500">OR</span>
-            <div className="h-px flex-1 bg-white/10" />
+          <button
+            type="button"
+            onClick={fillDemo}
+            className="mt-3 w-full rounded-full border border-teal-500/20 bg-teal-500/5 py-2 text-xs font-medium text-teal-400 transition-colors hover:bg-teal-500/10"
+          >
+            Fill demo credentials
+          </button>
+
+          <div className="my-5 flex items-center gap-3">
+            <div className="h-px flex-1 bg-white/8" />
+            <span className="text-xs font-medium text-zinc-600">OR</span>
+            <div className="h-px flex-1 bg-white/8" />
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             <button
               type="button"
-              className="flex w-full items-center gap-3 rounded-full border border-white/10 bg-white/5 px-5 py-3.5 text-sm text-zinc-300 transition-colors hover:bg-white/10"
+              className="flex w-full items-center gap-3 rounded-full border border-white/8 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition-colors hover:bg-white/10"
             >
               <GoogleIcon />
-              <span className="flex-1 text-left">Continue with Google</span>
-              <span className="text-zinc-500"><ArrowIcon /></span>
+              <span className="flex-1 text-left text-sm">Continue with Google</span>
+              <span className="text-zinc-600"><ArrowIcon /></span>
             </button>
 
             <button
               type="button"
-              className="flex w-full items-center gap-3 rounded-full border border-white/10 bg-white/5 px-5 py-3.5 text-sm text-zinc-300 transition-colors hover:bg-white/10"
+              className="flex w-full items-center gap-3 rounded-full border border-white/8 bg-white/5 px-5 py-3 text-sm text-zinc-300 transition-colors hover:bg-white/10"
             >
               <XIcon />
-              <span className="flex-1 text-left">Continue with X</span>
-              <span className="text-zinc-500"><ArrowIcon /></span>
+              <span className="flex-1 text-left text-sm">Continue with X</span>
+              <span className="text-zinc-600"><ArrowIcon /></span>
             </button>
           </div>
 
-          <p className="mt-8 text-center text-sm text-zinc-500">
+          <p className="mt-7 text-center text-sm text-zinc-600">
             Don&apos;t have an account?{" "}
-            <Link to="/signup" className="font-medium text-teal-400 hover:text-teal-300">
+            <Link to="/signup" className="font-semibold text-teal-400 hover:text-teal-300">
               Sign up
             </Link>
           </p>
