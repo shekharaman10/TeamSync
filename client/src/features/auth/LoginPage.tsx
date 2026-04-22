@@ -17,9 +17,15 @@ export function LoginPage() {
     handleSubmit,
     formState: { errors },
     setError,
+    setValue,
   } = useForm<LoginInput>({
     resolver: zodResolver(LoginSchema),
   });
+
+  function fillDemo() {
+    setValue("email", "demo@teamsync.com");
+    setValue("password", "test@123");
+  }
 
   function onSubmit(data: LoginInput) {
     login(data, {
@@ -40,7 +46,15 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-sm">
-        <h1 className="mb-6 text-2xl font-bold text-gray-900">Sign in</h1>
+        <h1 className="mb-4 text-2xl font-bold text-gray-900">Sign in</h1>
+
+        <button
+          type="button"
+          onClick={fillDemo}
+          className="mb-4 w-full rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700"
+        >
+          Fill demo credentials
+        </button>
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
           {errors.root && (
