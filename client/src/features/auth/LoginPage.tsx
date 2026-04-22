@@ -1,8 +1,8 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, Link } from "react-router-dom";
-import { isAxiosError } from "axios";
 import { LoginSchema } from "./auth.schemas";
+import { extractErrorMessage } from "../../lib/error";
 import type { LoginInput } from "./auth.schemas";
 import { useLogin } from "./auth.api";
 import { useAuthStore } from "./useAuthStore";
@@ -55,13 +55,7 @@ export function LoginPage() {
         navigate("/app", { replace: true });
       },
       onError: (err) => {
-        const message = isAxiosError(err)
-          ? (err.response?.data?.message as string | undefined) ??
-            (err.code === "ERR_NETWORK"
-              ? "Cannot reach the server. Make sure the backend is running."
-              : "Something went wrong. Please try again.")
-          : "Something went wrong. Please try again.";
-        setError("root", { message });
+        setError("root", { message: extractErrorMessage(err) });
       },
     });
   }
