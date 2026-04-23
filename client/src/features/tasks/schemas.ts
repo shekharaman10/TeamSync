@@ -14,5 +14,13 @@ export const CreateTaskSchema = z.object({
 });
 export type CreateTaskInput = z.infer<typeof CreateTaskSchema>;
 
-export const UpdateTaskSchema = CreateTaskSchema.partial();
+export const UpdateTaskSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  description: z.string().max(2000).nullable().optional(),
+  status: z.enum(TASK_STATUSES).optional(),
+  priority: z.enum(PRIORITIES).optional(),
+  assigneeId: z.string().nullable().optional(),
+  epicId: z.string().nullable().optional(),
+  dueDate: z.string().nullable().optional(),
+});
 export type UpdateTaskInput = z.infer<typeof UpdateTaskSchema>;

@@ -38,3 +38,9 @@ export async function analytics(req: Request, res: Response) {
   const data = await svc.getAnalytics(req.membership!.workspaceId);
   res.json({ analytics: data });
 }
+
+export async function seedDemo(req: Request, res: Response) {
+  const force = req.query.force === "true";
+  const result = await svc.seedDemoData(req.membership!.workspaceId, req.user!.id, force);
+  res.status(201).json({ message: "Demo data seeded successfully", ...result });
+}

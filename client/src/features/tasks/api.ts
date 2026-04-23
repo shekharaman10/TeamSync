@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { api } from "../../lib/api";
 import { QK } from "../../lib/query-keys";
-import type { Task, TaskFilters } from "../../lib/types";
+import type { Task, TaskFilters, Comment } from "../../lib/types";
 import type { CreateTaskInput, UpdateTaskInput } from "./schemas";
 
 type TasksPage = { tasks: Task[]; nextCursor: string | null };
@@ -87,6 +87,55 @@ export function useDeleteTask(projectId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["projects", projectId, "tasks"] });
       qc.invalidateQueries({ queryKey: QK.boardTasks(projectId) });
+    },
+  });
+}
+
+export function useComments(taskId: string) {
+  return useQuery({
+    queryKey: QK.comments(taskId),
+    queryFn: async () => {
+      const { data } = await api.get<{ comments: Comment[] }>(`/tasks/${taskId}/comments`);
+      return data.comments;
+    },
+    enabled: !!taskId,
+  });
+}
+
+export function useCreateComment(taskId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: string) => {
+      const { data } = await api.post<{ comment: Comment }>(`/tasks/${taskId}/comments`, { body });
+      return data.comment;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.comments(taskId) });
+    },
+  });
+}
+
+export function useUpdateComment(taskId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ commentId, body }: { commentId: string; body: string }) => {
+      const { data } = await api.patch<{ comment: Comment }>(`/tasks/${taskId}/comments/${commentId}`, { body });
+      return data.comment;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.comments(taskId) });
+    },
+  });
+}
+
+export function useDeleteComment(taskId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (commentId: string) => {
+      await api.delete(`/tasks/${taskId}/comments/${commentId}`);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.comments(taskId) });
     },
   });
 }

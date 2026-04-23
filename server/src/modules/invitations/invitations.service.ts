@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import { prisma } from "../../config/prisma";
 import { HttpError } from "../../utils/http-error";
+import { sendInvitationEmail } from "../../utils/email";
+import { env } from "../../config/env";
 import type { InviteInput } from "./invitations.schemas";
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -37,6 +39,13 @@ export async function createInvitation(workspaceId: string, invitedById: string,
   });
 
   const token = crypto.randomBytes(32).toString("hex");
+
+  // Fetch inviter name and workspace name for the email (run in parallel)
+  const [inviter, workspace] = await Promise.all([
+    prisma.user.findUnique({ where: { id: invitedById }, select: { name: true } }),
+    prisma.workspace.findUnique({ where: { id: workspaceId }, select: { name: true } }),
+  ]);
+
   const invitation = await prisma.invitation.create({
     data: {
       email: input.email,
@@ -55,6 +64,11 @@ export async function createInvitation(workspaceId: string, invitedById: string,
       invitedBy: { select: { id: true, name: true } },
     },
   });
+
+  // Fire-and-forget — never blocks the response
+  if (inviter && workspace) {
+    sendInvitationEmail(input.email, workspace.name, inviter.name, token, env.CLIENT_URL);
+  }
 
   return invitation;
 }

@@ -75,6 +75,24 @@ export function useRemoveMember(workspaceId: string) {
   });
 }
 
+export function useSeedDemo(workspaceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ force = false }: { force?: boolean } = {}) => {
+      const url = force
+        ? `/workspaces/${workspaceId}/seed-demo?force=true`
+        : `/workspaces/${workspaceId}/seed-demo`;
+      const { data } = await api.post<{ message: string; projects: number; tasks: number }>(url);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.projects(workspaceId) });
+      qc.invalidateQueries({ queryKey: QK.workspaceAnalytics(workspaceId) });
+      qc.invalidateQueries({ queryKey: QK.workspaceMembers(workspaceId) });
+    },
+  });
+}
+
 export function useUpdateMemberRole(workspaceId: string) {
   const qc = useQueryClient();
   return useMutation({

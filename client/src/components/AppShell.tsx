@@ -5,9 +5,11 @@ type Props = { children: ReactNode };
 
 export function AppShell({ children }: Props) {
   return (
-    <div className="flex h-screen bg-zinc-900">
+    <div className="app-bg flex h-screen">
       <Sidebar />
-      <main className="flex flex-1 flex-col overflow-hidden">
+      {/* Glowing edge divider — reinforces sidebar depth */}
+      <div className="w-px shrink-0 bg-emerald-500/6 shadow-[0_0_12px_rgba(34,197,94,0.12)]" />
+      <main className="app-bg flex flex-1 flex-col overflow-hidden">
         {children}
       </main>
     </div>

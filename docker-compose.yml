@@ -6,6 +6,8 @@ services:
       POSTGRES_USER: teamsync
       POSTGRES_PASSWORD: teamsync
       POSTGRES_DB: teamsync
+    ports:
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

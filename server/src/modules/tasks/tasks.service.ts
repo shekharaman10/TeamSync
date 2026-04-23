@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma";
 import { HttpError } from "../../utils/http-error";
+import { sendTaskAssignedEmail, sendTaskCompletedEmail } from "../../utils/email";
 import type { CreateTaskInput, UpdateTaskInput, TaskFiltersInput } from "./tasks.schemas";
 import type { Prisma } from "@prisma/client";
 
@@ -19,12 +20,14 @@ const taskSelect = {
   assignee: { select: { id: true, name: true, avatarUrl: true } },
   createdBy: { select: { id: true, name: true } },
   epic: { select: { id: true, title: true } },
+  project: { select: { key: true } },
+  _count: { select: { comments: true } },
 } as const;
 
 async function assertProjectAccess(projectId: string, userId: string) {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
-    select: { id: true, workspaceId: true },
+    select: { id: true, name: true, workspaceId: true },
   });
   if (!project) throw new HttpError(404, "Project not found");
 
@@ -81,7 +84,7 @@ export async function listTasks(projectId: string, userId: string, filters: Task
 }
 
 export async function createTask(projectId: string, userId: string, input: CreateTaskInput) {
-  await assertProjectAccess(projectId, userId);
+  const { project } = await assertProjectAccess(projectId, userId);
 
   const task = await prisma.task.create({
     data: {
@@ -98,6 +101,15 @@ export async function createTask(projectId: string, userId: string, input: Creat
     select: taskSelect,
   });
 
+  // Fire-and-forget: notify new assignee (skip self-assignment)
+  if (input.assigneeId && input.assigneeId !== userId) {
+    prisma.user.findUnique({ where: { id: input.assigneeId }, select: { name: true, email: true } })
+      .then((u) => {
+        if (u) sendTaskAssignedEmail(u.email, u.name, task.title, project.name);
+      })
+      .catch(() => undefined);
+  }
+
   return task;
 }
 
@@ -109,6 +121,12 @@ export async function getTask(taskId: string, userId: string) {
 export async function updateTask(taskId: string, userId: string, input: UpdateTaskInput) {
   await assertTaskAccess(taskId, userId);
 
+  // Snapshot fields we need for email triggers before the write
+  const snapshot = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: { assigneeId: true, status: true, createdById: true, project: { select: { name: true } } },
+  });
+
   const task = await prisma.task.update({
     where: { id: taskId },
     data: {
@@ -117,6 +135,29 @@ export async function updateTask(taskId: string, userId: string, input: UpdateTa
     },
     select: taskSelect,
   });
+
+  if (snapshot) {
+    // Notify new assignee when assignee changed and it's not a self-assignment
+    const newAssignee = input.assigneeId;
+    if (newAssignee && newAssignee !== snapshot.assigneeId && newAssignee !== userId) {
+      prisma.user.findUnique({ where: { id: newAssignee }, select: { name: true, email: true } })
+        .then((u) => {
+          if (u) sendTaskAssignedEmail(u.email, u.name, task.title, snapshot.project.name);
+        })
+        .catch(() => undefined);
+    }
+
+    // Notify creator when task is newly marked done, unless the creator did it themselves
+    if (input.status === "DONE" && snapshot.status !== "DONE" && snapshot.createdById !== userId) {
+      prisma.user.findUnique({ where: { id: snapshot.createdById }, select: { name: true, email: true } })
+        .then(async (creator) => {
+          if (!creator) return;
+          const actor = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+          sendTaskCompletedEmail(creator.email, creator.name, task.title, actor?.name ?? "A teammate");
+        })
+        .catch(() => undefined);
+    }
+  }
 
   return task;
 }

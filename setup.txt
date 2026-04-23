@@ -1,325 +1,404 @@
 ==============================================================================
-TeamSync — Project Setup & Context
+TeamSync — Project Setup & Onboarding Guide
 ==============================================================================
 
-Last updated: 2026-04-22
+Last updated: 2026-04-23
 
 
 1. PROJECT OBJECTIVE
 ------------------------------------------------------------------------------
 
-TeamSync is an advanced B2B team project management SaaS in the spirit of
-Jira / Linear. Organizations create workspaces, invite members, organize work
-into projects and epics, and track tasks with status, priority, and assignees.
+TeamSync is a multi-tenant B2B project management SaaS in the spirit of
+Linear / Jira. Organizations create workspaces, invite members with role-based
+access, organize work into projects and epics, and track tasks through a full
+status lifecycle.
 
-The intent is not a tutorial CRUD app — the system is built to enforce clean
-boundaries, data integrity (via transactions), multi-tenant isolation (via
-workspaces), and role-based access control from day one. This is the kind of
-architecture a B2B product would need to pass a security review and scale to
-real customers.
+The system enforces clean architectural boundaries, database-level multi-tenant
+isolation, and RBAC from day one — the kind of architecture that passes a
+security review and scales to real customers.
 
-Core capabilities:
-  - Authentication: Email/Password + Google OAuth (httpOnly cookies, no
-    localStorage tokens)
-  - Multiple workspaces per user, each with its own members/projects
-  - Projects → Epics → Tasks hierarchy
-  - Task CRUD with status (BACKLOG/TODO/IN_PROGRESS/IN_REVIEW/DONE),
-    priority (LOW/MEDIUM/HIGH/URGENT), assignee, epic, due date
-  - RBAC: OWNER, ADMIN, MEMBER — enforced via Membership table, NOT JWT claims
-    (so role changes take effect immediately without re-login)
-  - Workspace invitations via tokenized email links
-  - Filtering and search (status, priority, assignee) with indexed queries
-  - Analytics dashboard (tasks per status, per user, completion rate)
-  - Cursor-based pagination (not offset — offset breaks at scale)
-  - Cookie-based session management + logout/session termination
-  - Seed script for demo data
-  - Prisma transactions for atomic multi-table writes
+STATUS: Fully implemented and running. Both backend (Express API) and frontend
+(React SPA) are complete and integrated.
 
 
 2. TECH STACK
 ------------------------------------------------------------------------------
 
 Backend
-  - Node.js + Express 5 (TypeScript, strict mode)
-  - Prisma ORM (PostgreSQL)
-  - JWT (access + refresh) in httpOnly cookies
-  - bcrypt for password hashing
+  - Node.js 20+ + Express 5 (TypeScript strict mode)
+  - Prisma 6 ORM + PostgreSQL 16
+  - JWT access tokens (short-lived, httpOnly cookies)
+  - Opaque refresh tokens (stored hashed in DB, rotated on use)
+  - bcrypt (cost 10) for password hashing
   - zod for request validation and env validation
-  - passport-google-oauth20 for Google Sign-In
+  - nodemailer (SMTP) for invitation and task notification emails
+  - passport-google-oauth20 for Google OAuth
 
-Frontend (not yet set up)
-  - Vite + React + TypeScript
-  - TanStack Query (server state)
-  - Zustand (UI state)
-  - React Router
-  - React Hook Form + zod
-  - Tailwind CSS
+Frontend
+  - Vite 5 + React 18 + TypeScript strict
+  - TanStack Query v5 (server state, cache, pagination)
+  - Zustand (client UI state — auth status, last workspace)
+  - React Router v6 (file-based routing)
+  - React Hook Form + zod resolver
+  - Tailwind CSS v4
+  - @dnd-kit/core + @dnd-kit/sortable (Kanban drag-and-drop)
+  - recharts (analytics charts)
+  - framer-motion (animations)
 
 Database
-  - PostgreSQL 16 (local for dev, Atlas-equivalent managed service for prod)
+  - PostgreSQL 16 (local dev on port 5432)
 
 
 3. REPOSITORY LAYOUT
 ------------------------------------------------------------------------------
 
 teamsync/
-├── .gitignore
-├── client/                         (frontend — not yet initialized)
-└── server/                         (backend — current focus)
-    ├── .env                        (secrets — gitignored; see section 5)
-    ├── .gitignore
+├── CLAUDE.md                   Claude Code behavioral instructions
+├── architecture.md             Full architecture, data model, API routes
+├── setup.txt                   This file — onboarding and dev commands
+├── .claude/
+│   ├── skills/                 Reusable how-to guides for Claude
+│   └── rules/                  Non-negotiable rules (code-style, database, security)
+│
+├── server/                     Express API — port 5000
+│   ├── CLAUDE.md               Backend-specific conventions for Claude
+│   ├── package.json
+│   ├── tsconfig.json           strict, moduleResolution: node16
+│   ├── prisma.config.ts        Loads dotenv, points schema path
+│   ├── .env                    Secrets — gitignored
+│   ├── prisma/
+│   │   ├── schema.prisma       Source of truth for data model
+│   │   └── migrations/         Auto-generated SQL migration history
+│   └── src/
+│       ├── index.ts            Bootstrap + graceful shutdown
+│       ├── app.ts              Express app, middleware, route mounting
+│       ├── config/
+│       │   ├── env.ts          Zod-validated env loader
+│       │   └── prisma.ts       Shared PrismaClient (import from here only)
+│       ├── middleware/
+│       │   ├── require-auth.ts           Parses access_token cookie → req.user
+│       │   ├── require-workspace-member.ts  Looks up Membership → req.membership
+│       │   ├── require-membership.ts     Combined auth + membership
+│       │   ├── require-role.ts           Checks role against allowed list
+│       │   └── rate-limit.ts             express-rate-limit on auth endpoints
+│       ├── utils/
+│       │   ├── http-error.ts   HttpError class for typed 4xx responses
+│       │   ├── jwt.ts          signAccessToken / verifyAccessToken
+│       │   ├── cookies.ts      setAuthCookies / clearAuthCookies
+│       │   └── email.ts        sendEmail wrapper + sendInvitationEmail,
+│       │                       sendTaskAssignedEmail, sendTaskCompletedEmail
+│       ├── types/
+│       │   └── express.d.ts    Augments Request: req.user, req.membership
+│       └── modules/
+│           ├── auth/           signup, login, refresh, logout, /me
+│           ├── workspaces/     CRUD, members, analytics, seed-demo
+│           ├── projects/       CRUD within workspace
+│           ├── epics/          CRUD within project
+│           ├── tasks/          CRUD + cursor pagination + comments
+│           └── invitations/    create, list, revoke, accept
+│
+└── client/                     React SPA — port 5173 (dev)
     ├── package.json
     ├── tsconfig.json
-    ├── prisma.config.ts            (loads dotenv, points to schema)
-    ├── prisma/
-    │   ├── schema.prisma           (full data model — see section 4)
-    │   └── migrations/
-    │       └── 20260421195618_init/
-    │           └── migration.sql
+    ├── vite.config.ts          /api proxy → http://localhost:5000
     └── src/
-        ├── index.ts                (bootstraps server + graceful shutdown)
-        ├── app.ts                  (Express app, middleware, routes)
-        ├── config/
-        │   ├── env.ts              (zod-validated env loader)
-        │   └── prisma.ts           (shared PrismaClient instance)
-        ├── middleware/             (auth, RBAC, error handling — TO BUILD)
-        ├── utils/                  (jwt helpers, cookie helpers — TO BUILD)
-        ├── types/                  (shared TS types — TO BUILD)
-        └── modules/                (feature slices — each owns its own
-            │                        routes, controller, service, validators)
-            ├── auth/
-            ├── users/
-            ├── workspaces/
-            ├── projects/
-            ├── epics/
-            ├── tasks/
-            ├── invitations/
-            └── analytics/
+        ├── main.tsx            Entry point
+        ├── index.css           Tailwind + CSS custom properties
+        ├── app/
+        │   ├── router.tsx      All React Router routes
+        │   └── providers.tsx   QueryClientProvider wrapper
+        ├── components/         AppShell, Sidebar, NavItem, ui/*
+        ├── features/
+        │   ├── auth/           Login, Signup, AuthGuard, useAuthStore
+        │   ├── workspaces/     Shell, switcher, create, seed demo API
+        │   ├── projects/       List, create, detail, ProjectSelector
+        │   ├── epics/          List, create, badge
+        │   ├── tasks/          CRUD, filters, comments, infinite scroll
+        │   ├── board/          5-col Kanban with dnd-kit
+        │   ├── backlog/        Backlog view
+        │   ├── analytics/      Dashboard, analytics, development pages
+        │   ├── timeline/       Gantt view
+        │   ├── calendar/       Week/Month/Agenda calendar
+        │   ├── list/           Sortable table view
+        │   ├── goals/          Goals tracking
+        │   ├── members/        Member list + invite form
+        │   ├── invitations/    Accept invite page, invite form, pending list
+        │   └── settings/       5-section workspace settings
+        └── lib/
+            ├── api.ts          Axios instance + 401→refresh interceptor
+            ├── types.ts        Shared TypeScript types
+            ├── query-keys.ts   QK factory for React Query cache keys
+            ├── query-client.ts React Query client config
+            └── error.ts        extractErrorMessage helper
 
-The module-based layout (vs. flat controllers/routes/models folders) is
-deliberate. When a feature changes, everything related to it lives in one
-folder. This scales better as the codebase grows.
 
-
-4. DATA MODEL (Prisma — prisma/schema.prisma)
+4. DATA MODEL
 ------------------------------------------------------------------------------
 
-Models: User, Workspace, Membership, Project, Epic, Task, Invitation
-Enums:  Role (OWNER/ADMIN/MEMBER), TaskStatus, Priority, AuthProvider
+Source of truth: server/prisma/schema.prisma
 
-Key design decisions:
-  - Membership is its own table joining User <-> Workspace with a Role.
-    This is how multi-tenant RBAC is enforced. Do NOT put role on the JWT;
-    look up the membership row per request.
-  - Workspace has a unique `slug` for URL-friendly references.
-  - Project has a composite unique (workspaceId, key) so each workspace can
-    have its own "TS", "ENG", etc. without global collisions.
-  - Task has three composite indexes tuned for the real filter queries:
-    (projectId, status), (projectId, assigneeId), (projectId, priority).
-    Without these, filtering at scale degrades badly.
-  - Invitation uses a unique token and an expiresAt — standard pattern for
-    email-based invite flows.
-  - Cascade deletes are set on workspace → projects → tasks etc., so deleting
-    a workspace cleans up its entire tree atomically.
+Enums:
+  Role:        OWNER | ADMIN | MEMBER
+  TaskStatus:  BACKLOG | TODO | IN_PROGRESS | IN_REVIEW | DONE
+  Priority:    LOW | MEDIUM | HIGH | URGENT
+  AuthProvider: EMAIL | GOOGLE
 
-See prisma/schema.prisma for the full model.
+Models (8):
+
+  User          — id, email (unique), name, passwordHash, googleId,
+                  provider, avatarUrl, createdAt, updatedAt
+
+  Workspace     — id, name, slug (unique), ownerId → User, timestamps
+                  CASCADE deletes all projects/tasks when deleted
+
+  Membership    — userId → User, workspaceId → Workspace, role, joinedAt
+                  @@unique([userId, workspaceId])
+                  This table is the RBAC enforcement mechanism. Never
+                  put role on the JWT. Look up per request.
+
+  Project       — id, workspaceId → Workspace, name, key, description, timestamps
+                  @@unique([workspaceId, key])  — key unique within workspace
+
+  Epic          — id, projectId → Project (CASCADE), title, description, timestamps
+
+  Task          — id, projectId → Project (CASCADE), epicId? → Epic (SET NULL),
+                  title, description, status, priority, assigneeId?, createdById,
+                  dueDate?, timestamps
+                  @@index([projectId, status])
+                  @@index([projectId, assigneeId])
+                  @@index([projectId, priority])
+
+  Comment       — id, taskId → Task (CASCADE), authorId → User, body, timestamps
+
+  RefreshToken  — id, userId → User (CASCADE), tokenHash (SHA-256),
+                  expiresAt, createdAt, revokedAt?
+
+  Invitation    — id, email, workspaceId → Workspace (CASCADE), role,
+                  token (unique, 32-byte random hex), invitedById → User,
+                  expiresAt (7 days), acceptedAt? (null = pending), createdAt
+                  @@index([email, workspaceId])
 
 
 5. ENVIRONMENT VARIABLES (server/.env)
 ------------------------------------------------------------------------------
 
-Copy server/.env.example (to be created) and fill in values locally. Never
-commit the real .env.
-
 Required:
-  DATABASE_URL              Postgres connection string
-                            Format: postgresql://USER:PASS@HOST:PORT/DB
-  PORT                      API port (default 5000)
-  JWT_ACCESS_SECRET         Random 64+ char hex string
-  JWT_REFRESH_SECRET        Different random 64+ char hex string
-  COOKIE_DOMAIN             "localhost" for dev, your domain in prod
-  NODE_ENV                  "development" | "production" | "test"
-  CLIENT_URL                Frontend origin (http://localhost:5173 for dev)
+  DATABASE_URL              postgresql://USER:PASS@HOST:PORT/teamsync
+  JWT_ACCESS_SECRET         64+ char random hex
+  CLIENT_URL                http://localhost:5173 (dev)
+  PORT                      5000
 
-Optional (enable Google OAuth):
+SMTP (email skipped silently if SMTP_HOST is blank):
+  SMTP_HOST                 smtp.gmail.com
+  SMTP_PORT                 587
+  SMTP_SECURE               false
+  SMTP_USER                 your@gmail.com
+  SMTP_PASS                 Gmail app password (not your login password)
+  SMTP_FROM                 TeamSync <your@gmail.com>
+
+Optional (Google OAuth):
   GOOGLE_CLIENT_ID
   GOOGLE_CLIENT_SECRET
   GOOGLE_CALLBACK_URL
 
-Generate a JWT secret with:
+Other:
+  COOKIE_DOMAIN             localhost (dev)
+  NODE_ENV                  development
+
+Generate a secret:
   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 
-env.ts validates all of these with zod at startup. If anything's missing or
-malformed, the server exits immediately with a clear error — no silent runtime
-surprises.
+Gmail app password: https://myaccount.google.com/apppasswords
+  (Requires 2FA enabled on the Google account)
 
 
-6. INITIAL SETUP (from scratch, for a new machine)
+6. LOCAL SETUP (from scratch, new machine)
 ------------------------------------------------------------------------------
 
 Prerequisites:
   - Node.js 20+
-  - PostgreSQL 16 running locally on port 5432
-  - A postgres user with a known password
+  - PostgreSQL 16 running on localhost:5432
 
 Steps:
 
-  # 1. Install dependencies
-  cd server
-  npm install
+  # Clone and install
+  git clone <repo>
+  cd teamsync/server && npm install
+  cd ../client && npm install
 
-  # 2. Create the .env file
-  #    Copy .env.example (once created) to .env and fill in values.
-  #    Do NOT commit .env.
+  # Create server/.env  (copy the variables from section 5 and fill them in)
 
-  # 3. Create the database (one-time)
+  # Create the database
   psql -U postgres -c "CREATE DATABASE teamsync;"
 
-  # 4. Apply migrations and generate Prisma Client
+  # Apply migrations and generate Prisma client
+  cd server
   npx prisma migrate dev
 
-  # 5. (Optional) Browse data
-  npx prisma studio         # opens http://localhost:5555
+  # Start both servers (two terminals)
+  cd server && npm run dev        # API on :5000
+  cd client && npm run dev        # SPA on :5173
 
-  # 6. Start the dev server
-  npm run dev               # ts-node-dev, auto-restarts on save
-
-  # 7. Verify
+  # Verify backend
   curl http://localhost:5000/api/health
-  # Expected: {"ok":true,"db":"connected","time":"..."}
+  # → {"ok":true,"db":"connected","time":"..."}
+
+  # Open the app
+  http://localhost:5173
+
+  # Sign up, create a workspace, then click "Load demo data" on the Projects
+  # page to populate 2 projects, 6 epics, and 30 tasks.
 
 
-7. AVAILABLE SCRIPTS (server/package.json)
+7. DEV COMMANDS
 ------------------------------------------------------------------------------
 
-  npm run dev              Start dev server with ts-node-dev auto-reload
-  npm run build            Compile TypeScript to dist/
-  npm start                Run compiled production build
-  npm run prisma:migrate   Apply migrations in dev
-  npm run prisma:studio    Open Prisma Studio GUI
+Backend (cd server):
+  npm run dev              ts-node-dev with auto-reload on file save
+  npm run build            tsc → dist/
+  npm start                Run compiled build (production)
+  npx tsc --noEmit         Type-check without emitting
+  npx prisma migrate dev --name <desc>   Create + apply migration
+  npx prisma migrate reset               Drop and reapply all migrations
+  npx prisma studio                      GUI at http://localhost:5555
+  npx prisma generate                    Regenerate client after schema edit
+
+Frontend (cd client):
+  npm run dev              Vite dev server on :5173 with HMR
+  npm run build            Production build → dist/
+  npx tsc --noEmit         Type-check
+
+Database (psql):
+  psql -U postgres
+  \l                       List databases
+  \c teamsync              Connect
+  \dt                      List tables
+  \d "User"                Describe table (quotes needed — Prisma uses PascalCase)
+  \q                       Quit
 
 
-8. CURRENT STATUS (as of last update)
+8. CURRENT STATUS
 ------------------------------------------------------------------------------
 
-DONE
-  [x] Monorepo folder structure created
-  [x] Backend dependencies installed
-  [x] TypeScript configured (strict mode, node16 module resolution)
-  [x] Prisma initialized and schema defined (7 models, 4 enums)
-  [x] Initial migration applied — all tables exist in Postgres
-  [x] prisma.config.ts set up to load .env via dotenv
-  [x] env.ts with zod validation
-  [x] Shared PrismaClient instance (src/config/prisma.ts)
-  [x] Express app with CORS, cookie-parser, body parser
-  [x] /api/health endpoint — proven end-to-end (Express → Prisma → Postgres)
-  [x] Global error handler + 404 handler
-  [x] Graceful shutdown (Prisma disconnect on SIGINT/SIGTERM)
+FULLY IMPLEMENTED:
 
-TODO — NEXT UP (in dependency order)
-  [ ] Auth module:
-        - Signup (email/password) — hash with bcrypt
-        - Login — issue access + refresh tokens in httpOnly cookies
-        - Refresh endpoint — rotate refresh tokens, detect reuse
-        - Logout — clear cookies, invalidate refresh
-        - Google OAuth flow (passport-google-oauth20)
-  [ ] requireAuth middleware — parses access cookie, attaches req.user
-  [ ] requireRole middleware — looks up Membership, checks role per request
-  [ ] Workspace module:
-        - Create workspace (Prisma transaction: workspace + owner membership)
-        - List user's workspaces
-        - Get workspace by slug
-  [ ] Invitation module:
-        - Create invitation (tokenized, expiring)
-        - Accept invitation (creates Membership)
-  [ ] Project module: CRUD within a workspace
-  [ ] Epic module: CRUD within a project
-  [ ] Task module: CRUD + filtering + cursor pagination
-  [ ] Analytics module: aggregate queries for dashboard
-  [ ] Seed script (src/prisma/seed.ts) — creates test users, a workspace,
-      a project, and ~20 tasks spread across statuses/priorities
-  [ ] Structured logging (pino)
-  [ ] Rate limiting on auth endpoints
+Backend
+  [x] Express 5 app with CORS, cookie-parser, rate limiting
+  [x] Zod env validation — exits loudly on missing vars
+  [x] Prisma 6 + PostgreSQL 16 — all migrations applied
+  [x] Auth module: signup, login, refresh (token rotation + reuse detection), logout, /me
+  [x] Google OAuth (passport-google-oauth20)
+  [x] requireAuth middleware (access_token cookie → req.user)
+  [x] requireWorkspaceMember middleware (Membership lookup → req.membership)
+  [x] requireRole middleware (OWNER / ADMIN / MEMBER)
+  [x] HttpError class + global error handler (ZodError → 400, HttpError → status, else 500)
+  [x] Workspace module: CRUD, member management, analytics aggregation
+  [x] Demo seed: 2 projects, 6 epics, 30 tasks; force-reset with ordered delete (tasks→epics→projects)
+  [x] Project module: CRUD with workspaceId scoping
+  [x] Epic module: CRUD with projectId scoping
+  [x] Task module: CRUD, cursor pagination, status/priority/assignee filters, comments
+  [x] Invitation module: create (+ SMTP email), list, revoke, atomic accept (transaction)
+  [x] Email utils: sendInvitationEmail, sendTaskAssignedEmail, sendTaskCompletedEmail
 
-FRONTEND — NOT STARTED
-  [ ] Vite + React + TS init in client/
-  [ ] Auth flow + protected routes
-  [ ] Workspace switcher
-  [ ] Task board (kanban-style)
-  [ ] Analytics dashboard
-  [ ] Invitation accept page
+Frontend
+  [x] Vite + React 18 + TypeScript + Tailwind CSS v4
+  [x] React Router v6 — all routes wired
+  [x] Auth: Login/Signup pages, AuthGuard, PublicOnlyRoute, useAuthStore
+  [x] Axios instance with 401 → refresh → retry interceptor
+  [x] TanStack Query v5: all API hooks, QK factory, infinite task pagination
+  [x] Workspace select/create, workspace switcher, WorkspaceShell tab nav
+  [x] Dashboard: metrics grid, area chart, donut, recent tasks, activity feed
+      "View All Tasks →" navigates to /list
+  [x] Kanban board: 5 columns, dnd-kit drag-drop, member avatar filters
+  [x] Backlog view
+  [x] Projects list with demo seed button (force reset on re-seed)
+  [x] Epics management per project
+  [x] List view: sortable table (status/title/assignee/priority/due)
+  [x] Timeline view (Gantt)
+  [x] Calendar: Week / Month / Agenda modes (Google Calendar style)
+  [x] Goals page
+  [x] Members page: list with role badges + InviteForm + PendingInvitesList
+      "Invite people" sidebar button navigates here
+  [x] Invitations: send (SMTP email dispatched), revoke, accept page
+  [x] Analytics page: detailed breakdown charts
+  [x] Development metrics page
+  [x] Settings: 5-section sidebar (General, Notifications, Members, Security, Danger)
+  [x] "+ New Task" button in WorkspaceShell (project-aware, opens modal)
+
+KNOWN GAPS / FUTURE WORK:
+  [ ] Google OAuth callback not tested end-to-end (credentials not configured)
+  [ ] No real-time updates (WebSockets / SSE) — all data is polled via React Query
+  [ ] No file attachments on tasks
+  [ ] No email notifications on task assignment/completion in default flow
+      (functions exist but not wired to task mutations yet)
+  [ ] Goals page is a placeholder UI (no backend model)
+  [ ] Development page shows placeholder data
+  [ ] Settings UI has no backend persistence for notifications/security toggles
 
 
-9. ARCHITECTURAL PRINCIPLES (DO NOT DRIFT)
+9. ARCHITECTURAL PRINCIPLES
 ------------------------------------------------------------------------------
 
-These are the design rules that separate this project from a toy app. Any
-contributor (human or AI) should preserve them:
+These rules must never be violated:
 
   1. RBAC lives in the database, not in tokens.
-     Look up Membership per request. Role changes must take effect without
-     forcing re-login.
+     Look up Membership per request. Role changes take effect immediately.
 
-  2. Auth cookies are httpOnly, Secure (in prod), SameSite=strict.
-     Never expose tokens to JS. No localStorage for auth.
+  2. Auth cookies are httpOnly, Secure (prod), SameSite=strict.
+     No localStorage for auth tokens. No tokens in response bodies.
 
-  3. Multi-table writes use Prisma transactions.
-     Creating a workspace must create the owner Membership atomically.
-     Accepting an invitation must create the Membership and mark the
-     invitation accepted atomically. If either step fails, both roll back.
+  3. Multi-table writes use Prisma transactions ($transaction).
+     Create workspace → create owner Membership: atomic.
+     Accept invitation → create Membership + mark accepted: atomic.
 
-  4. Request validation at the boundary.
-     Every controller validates its input with zod before touching the DB.
-     Never trust req.body.
+  4. Validate at the boundary with zod.
+     Every controller parses req.body / req.params / req.query through
+     a zod schema before touching the DB. Never trust raw input.
 
-  5. Index your filter columns.
-     When adding a new filter, add a matching composite index in schema.prisma.
+  5. Index filter columns.
+     When adding a WHERE filter, confirm there's a @@index in schema.prisma.
 
   6. Cursor pagination, not offset.
-     Offset pagination breaks silently at scale and double-counts rows when
-     the underlying data changes during scroll. Use the last seen id + createdAt.
+     Use last-seen id + createdAt. Offset breaks silently at scale.
 
-  7. Module-based layout.
-     Features own their routes, controllers, services, validators. Don't
-     spread a single feature across four sibling folders.
+  7. Controllers are thin; services hold logic.
+     Controllers: parse req → call service → respond.
+     Services: Prisma calls + business rules. Testable without HTTP.
 
-  8. No business logic in controllers.
-     Controllers parse the request and call services. Services contain the
-     actual logic and own the Prisma calls. This makes logic testable and
-     reusable (e.g., the same service can be called from a REST route and a
-     future background job).
+  8. Env validated at startup.
+     Missing vars = immediate exit with a clear message. Never silent.
 
-  9. Env validation at startup.
-     If a required env var is missing, fail immediately and loudly. Never
-     let the app boot into a broken state.
+  9. No swallowed errors.
+     Let errors propagate to the global handler. Log there.
 
-  10. Log errors; don't swallow them.
-     The global error handler logs everything and returns a safe JSON shape
-     to the client. Don't try/catch and silently return null.
+  10. Multi-tenant isolation is a security requirement.
+      Every workspace-scoped query filters by workspaceId from the
+      authenticated Membership. Never trust workspaceId from the request body.
 
 
-10. USEFUL COMMANDS CHEAT SHEET
+10. USEFUL DEBUGGING
 ------------------------------------------------------------------------------
 
-Prisma
-  npx prisma migrate dev --name <name>       Create + apply a new migration
-  npx prisma migrate reset                   Drop DB and reapply all
-                                             migrations (destroys data)
-  npx prisma generate                        Regenerate client after schema
-                                             change without a migration
-  npx prisma studio                          GUI at localhost:5555
-  npx prisma db pull                         Introspect existing DB into schema
-                                             (not typical workflow here)
+Check server health:
+  curl http://localhost:5000/api/health
 
-Postgres (local)
-  psql -U postgres                           Connect as superuser
-  \l                                          List databases
-  \c teamsync                                 Connect to teamsync DB
-  \dt                                         List tables
-  \d "User"                                   Describe a table (quotes matter
-                                             — Prisma uses PascalCase)
-  \q                                          Quit
+Browse DB state:
+  npx prisma studio   (opens http://localhost:5555)
 
+View server logs:
+  ts-node-dev prints all console.error + unhandled errors to stdout
+
+Check TypeScript:
+  cd server && npx tsc --noEmit
+  cd client && npx tsc --noEmit
+
+Reset demo data (via UI):
+  Projects page → "Reset demo" button (top right)
+  This force-resets: deletes tasks → epics → projects → re-seeds
+
+Reset demo data (curl — requires auth cookie):
+  curl -X POST http://localhost:5000/api/workspaces/<id>/seed-demo?force=true \
+    --cookie "access_token=<token>"
 
 ==============================================================================
 End of setup.txt

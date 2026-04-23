@@ -13,6 +13,13 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_CALLBACK_URL: z.string().optional(),
+  // Email — optional; if SMTP_HOST is absent, email is silently skipped
+  SMTP_HOST: z.string().default(""),
+  SMTP_PORT: z.coerce.number().int().default(587),
+  SMTP_SECURE: z.string().default("false"),
+  SMTP_USER: z.string().default(""),
+  SMTP_PASS: z.string().default(""),
+  SMTP_FROM: z.string().default("TeamSync <noreply@teamsync.app>"),
 });
 
 const parsed = envSchema.safeParse(process.env);

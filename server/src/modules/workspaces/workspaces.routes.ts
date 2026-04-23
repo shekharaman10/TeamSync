@@ -19,3 +19,4 @@ workspacesRouter.get("/workspaces/:workspaceId/members", ...member, ctrl.getMemb
 workspacesRouter.delete("/workspaces/:workspaceId/members/:userId", ...adminOrOwner, ctrl.deleteMember);
 
 workspacesRouter.get("/workspaces/:workspaceId/analytics", ...member, ctrl.analytics);
+workspacesRouter.post("/workspaces/:workspaceId/seed-demo", ...member, ctrl.seedDemo);

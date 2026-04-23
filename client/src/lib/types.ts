@@ -81,6 +81,17 @@ export type Task = {
   assignee: { id: string; name: string; avatarUrl: string | null } | null;
   createdBy: { id: string; name: string };
   epic: { id: string; title: string } | null;
+  project: { key: string };
+  _count: { comments: number };
+};
+
+export type Comment = {
+  id: string;
+  taskId: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+  author: { id: string; name: string; avatarUrl: string | null };
 };
 
 export type AnalyticsData = {

@@ -103,6 +103,156 @@ export async function removeMember(workspaceId: string, targetUserId: string) {
   });
 }
 
+// ── Demo seed data ────────────────────────────────────────────────────────────
+
+const DEMO_PROJECTS = [
+  {
+    name: "Product Roadmap",
+    key: "PRM",
+    description: "Core product features and user-facing improvements",
+    epics: [
+      {
+        title: "User Authentication & Onboarding",
+        tasks: [
+          { title: "Design sign-up flow with email verification",         status: "DONE"        as const, priority: "HIGH"   as const, daysOffset: -20 },
+          { title: "Implement OAuth 2.0 with Google and GitHub",          status: "DONE"        as const, priority: "HIGH"   as const, daysOffset: -15 },
+          { title: "Build password reset via email token",                status: "DONE"        as const, priority: "MEDIUM" as const, daysOffset: -10 },
+          { title: "Add onboarding checklist for new users",              status: "IN_PROGRESS" as const, priority: "MEDIUM" as const, daysOffset:  -3 },
+          { title: "Create account settings and profile page",            status: "IN_PROGRESS" as const, priority: "LOW"    as const, daysOffset:   5 },
+          { title: "Implement multi-factor authentication (MFA)",         status: "TODO"        as const, priority: "URGENT" as const, daysOffset:  14 },
+        ],
+      },
+      {
+        title: "Dashboard & Analytics",
+        tasks: [
+          { title: "Build workspace overview dashboard",                  status: "DONE"        as const, priority: "HIGH"   as const, daysOffset: -18 },
+          { title: "Implement task completion metrics chart",             status: "DONE"        as const, priority: "MEDIUM" as const, daysOffset: -12 },
+          { title: "Add team velocity tracking widget",                   status: "IN_REVIEW"   as const, priority: "MEDIUM" as const, daysOffset:  -2 },
+          { title: "Create exportable PDF and CSV reports",               status: "TODO"        as const, priority: "LOW"    as const, daysOffset:  21 },
+          { title: "Add real-time data refresh without page reload",      status: "BACKLOG"     as const, priority: "LOW"    as const, daysOffset:   0 },
+        ],
+      },
+      {
+        title: "Team Collaboration",
+        tasks: [
+          { title: "Build task comment system with threading",            status: "DONE"        as const, priority: "HIGH"   as const, daysOffset: -25 },
+          { title: "Implement @mention notifications in-app",             status: "IN_REVIEW"   as const, priority: "HIGH"   as const, daysOffset:   3 },
+          { title: "Add file attachment support to task cards",           status: "IN_PROGRESS" as const, priority: "MEDIUM" as const, daysOffset:  10 },
+          { title: "Create workspace-level activity feed",                status: "TODO"        as const, priority: "MEDIUM" as const, daysOffset:  18 },
+          { title: "Build notification preference center",                status: "BACKLOG"     as const, priority: "LOW"    as const, daysOffset:   0 },
+          { title: "Add emoji reactions to task comments",                status: "BACKLOG"     as const, priority: "LOW"    as const, daysOffset:   0 },
+        ],
+      },
+    ],
+  },
+  {
+    name: "Technical Foundation",
+    key: "TFN",
+    description: "Infrastructure, performance, and security improvements",
+    epics: [
+      {
+        title: "Infrastructure & DevOps",
+        tasks: [
+          { title: "Set up CI/CD pipeline with GitHub Actions",           status: "DONE"        as const, priority: "URGENT" as const, daysOffset: -30 },
+          { title: "Configure Docker Compose for local development",      status: "DONE"        as const, priority: "HIGH"   as const, daysOffset: -22 },
+          { title: "Deploy production environment on AWS ECS",            status: "IN_PROGRESS" as const, priority: "URGENT" as const, daysOffset:  -4 },
+          { title: "Set up staging environment with seed fixtures",       status: "IN_REVIEW"   as const, priority: "HIGH"   as const, daysOffset:   2 },
+          { title: "Configure automated nightly database backups",        status: "TODO"        as const, priority: "HIGH"   as const, daysOffset:  12 },
+        ],
+      },
+      {
+        title: "Performance Optimization",
+        tasks: [
+          { title: "Add Redis caching layer for frequent DB queries",     status: "IN_PROGRESS" as const, priority: "HIGH"   as const, daysOffset:  -5 },
+          { title: "Implement cursor-based pagination across all lists",  status: "DONE"        as const, priority: "MEDIUM" as const, daysOffset: -14 },
+          { title: "Optimize slow Prisma queries with composite indexes", status: "IN_REVIEW"   as const, priority: "HIGH"   as const, daysOffset:   1 },
+          { title: "Lazy-load board columns and virtualize long lists",   status: "TODO"        as const, priority: "MEDIUM" as const, daysOffset:  20 },
+          { title: "Enable gzip compression on all API responses",        status: "BACKLOG"     as const, priority: "LOW"    as const, daysOffset:   0 },
+        ],
+      },
+      {
+        title: "Security & Compliance",
+        tasks: [
+          { title: "Audit all API endpoints for authorization gaps",      status: "IN_PROGRESS" as const, priority: "URGENT" as const, daysOffset:  -6 },
+          { title: "Add rate limiting to auth and mutation endpoints",    status: "DONE"        as const, priority: "HIGH"   as const, daysOffset: -17 },
+          { title: "Implement GDPR data export and deletion endpoint",    status: "TODO"        as const, priority: "HIGH"   as const, daysOffset:  16 },
+          { title: "Add strict CSP headers and run security audit",      status: "TODO"        as const, priority: "MEDIUM" as const, daysOffset:  28 },
+        ],
+      },
+    ],
+  },
+];
+
+function daysFromNow(n: number): Date | undefined {
+  if (n === 0) return undefined;
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+/** Creates demo projects, epics, and tasks for a workspace.
+ *  Pass force=true to wipe all existing data first (destructive reset). */
+export async function seedDemoData(workspaceId: string, userId: string, force = false) {
+  const existing = await prisma.project.count({ where: { workspaceId } });
+  if (existing > 0 && !force) {
+    throw new HttpError(409, "Workspace already has projects — use force reset to replace them");
+  }
+
+  if (existing > 0 && force) {
+    // Explicit ordered delete: tasks → epics → projects to avoid FK constraint races
+    const projectIds = await prisma.project
+      .findMany({ where: { workspaceId }, select: { id: true } })
+      .then((ps) => ps.map((p) => p.id));
+
+    await prisma.task.deleteMany({ where: { projectId: { in: projectIds } } });
+    await prisma.epic.deleteMany({ where: { projectId: { in: projectIds } } });
+    await prisma.project.deleteMany({ where: { workspaceId } });
+  }
+
+  // Collect member IDs to rotate as assignees
+  const members = await prisma.membership.findMany({
+    where: { workspaceId },
+    select: { userId: true },
+  });
+  const memberIds = members.map((m) => m.userId);
+
+  let taskTotal = 0;
+  let assigneeIdx = 0;
+
+  for (const proj of DEMO_PROJECTS) {
+    const project = await prisma.project.create({
+      data: { workspaceId, name: proj.name, key: proj.key, description: proj.description },
+    });
+
+    for (const ep of proj.epics) {
+      const epic = await prisma.epic.create({
+        data: { projectId: project.id, title: ep.title, description: null },
+      });
+
+      const taskData = ep.tasks.map((t) => {
+        const assigneeId = memberIds[assigneeIdx % memberIds.length] ?? userId;
+        assigneeIdx++;
+        const due = daysFromNow(t.daysOffset);
+        return {
+          projectId: project.id,
+          epicId: epic.id,
+          title: t.title,
+          status: t.status,
+          priority: t.priority,
+          assigneeId,
+          createdById: userId,
+          dueDate: due ?? null,
+        };
+      });
+
+      await prisma.task.createMany({ data: taskData });
+      taskTotal += taskData.length;
+    }
+  }
+
+  return { projects: DEMO_PROJECTS.length, tasks: taskTotal };
+}
+
 /** Aggregates task metrics across all projects in the workspace. */
 export async function getAnalytics(workspaceId: string) {
   const projects = await prisma.project.findMany({

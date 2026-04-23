@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import * as svc from "./tasks.service";
-import { CreateTaskSchema, UpdateTaskSchema, TaskFiltersSchema } from "./tasks.schemas";
+import * as commentSvc from "./comments.service";
+import { CreateTaskSchema, UpdateTaskSchema, TaskFiltersSchema, CreateCommentSchema, UpdateCommentSchema } from "./tasks.schemas";
 
 export async function list(req: Request, res: Response) {
   const filters = TaskFiltersSchema.parse(req.query);
@@ -27,5 +28,27 @@ export async function update(req: Request, res: Response) {
 
 export async function remove(req: Request, res: Response) {
   await svc.deleteTask(req.params.taskId as string, req.user!.id);
+  res.status(204).send();
+}
+
+export async function listComments(req: Request, res: Response) {
+  const comments = await commentSvc.listComments(req.params.taskId as string, req.user!.id);
+  res.json({ comments });
+}
+
+export async function createComment(req: Request, res: Response) {
+  const { body } = CreateCommentSchema.parse(req.body);
+  const comment = await commentSvc.createComment(req.params.taskId as string, req.user!.id, body);
+  res.status(201).json({ comment });
+}
+
+export async function updateComment(req: Request, res: Response) {
+  const { body } = UpdateCommentSchema.parse(req.body);
+  const comment = await commentSvc.updateComment(req.params.commentId as string, req.user!.id, body);
+  res.json({ comment });
+}
+
+export async function removeComment(req: Request, res: Response) {
+  await commentSvc.deleteComment(req.params.commentId as string, req.user!.id);
   res.status(204).send();
 }

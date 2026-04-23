@@ -53,8 +53,9 @@ export function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
-      <div className="w-full max-w-90 overflow-hidden rounded-2xl border border-white/10 shadow-2xl shadow-black/80">
+    <div className="auth-bg relative flex min-h-screen items-center justify-center px-4">
+      <div className="absolute inset-0 bg-black/62" />
+      <div className="auth-card relative z-10 w-full max-w-md overflow-hidden rounded-2xl shadow-2xl shadow-black/80">
 
         {/* Glass header */}
         <div className="relative overflow-hidden px-8 pb-7 pt-8">
